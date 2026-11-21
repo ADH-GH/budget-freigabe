@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Budget-Freigabe nach Betrag</title>
+<style>
+:root{--bg:oklch(19% .022 258);--panel:oklch(23.5% .024 258);--raise:oklch(28.5% .025 258);--ink:oklch(95% .008 250);
+--ink2:oklch(82% .014 252);--mute:oklch(70% .018 253);--line:oklch(32% .025 258);--grid:oklch(27.5% .022 258);
+--accent:oklch(65.8% .128 251);--onaccent:oklch(16% .02 258);--glow:oklch(65.8% .128 251 / .18);
+--crit:oklch(70% .19 22);--high:oklch(78% .14 80);--auto:oklch(70% .14 155);
+--mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+--sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+--display:"Sora",ui-sans-serif,system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}html{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.01em}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header,main{max-width:1180px;margin:0 auto;padding:0 32px}header{margin-top:32px}main{padding-bottom:64px}
+.kicker{font:500 12.5px/1.2 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.kicker::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--glow);margin-right:10px;vertical-align:1px}
+h1{margin:22px 0 13px;font:600 38px/1.1 var(--display);letter-spacing:-.02em}
+.sub{color:var(--mute);font-size:13.5px;margin:0 0 8px;max-width:70ch}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:16px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px 10px}
+.tile b{display:block;font:500 28px/1.1 var(--mono);letter-spacing:-.02em;color:var(--accent);white-space:nowrap}
+.tile i{display:block;font:500 10.5px/1.3 var(--mono);font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px;margin-top:12px;min-width:0}
+.card h2{margin:0 0 4px;font:600 18px/1.3 var(--display);color:var(--ink)}.card p.sub{margin-bottom:14px}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+label{display:block;font:500 10.5px/1.3 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:12px 0 5px}
+input,select,textarea{width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:14px var(--sans)}
+textarea{height:auto;padding:10px;font:13px/1.5 var(--mono)}
+button{height:36px;font:600 14px/1 var(--sans);border-radius:8px;padding:0 16px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink)}
+button:hover{background:var(--raise)}button.ok{border-color:var(--accent);background:var(--accent);color:var(--onaccent)}
+button[disabled]{opacity:.45;cursor:not-allowed}
+table{border-collapse:collapse;width:100%;font-size:13.5px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{font:500 10.5px/1.3 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}td.num,th.num{text-align:right;font-family:var(--mono)}
+.tag{display:inline-block;font:500 11px/1.8 var(--mono);letter-spacing:.04em;border:1px solid currentColor;border-radius:6px;padding:0 8px;margin:0 4px 0 0;white-space:nowrap}
+.tag.auto{color:var(--auto)}.tag.appr{color:var(--high)}.tag.crit{color:var(--crit)}.tag.info{color:var(--accent)}
+.mute{color:var(--mute)}.mono{font-family:var(--mono)}
+footer{max-width:1180px;margin:0 auto;padding:0 32px 40px;color:var(--mute);font-size:12.5px;line-height:1.6}
+@media(max-width:720px){header,main,footer{padding-left:16px;padding-right:16px}h1{font-size:28px}.card{overflow-x:auto}}
+
+/* Ergaenzungen fuer dieses Tool */
+.tag{margin-bottom:4px}
+.tag.spaeter{color:var(--mute)}
+.klein{font-size:12.5px;color:var(--mute);margin:2px 0 0}
+.zeile{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.felder{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px}
+.fehler{color:var(--crit);font-size:13px;min-height:1.2em;margin:8px 0 0}
+.posten{border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;background:var(--bg)}
+.posten .kopf{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.posten .kopf b{font-weight:600}
+input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent);vertical-align:middle}
+#vorschau{margin-top:12px;min-height:30px}
+a{color:var(--accent)}
+#anruf{border-top:1px solid var(--grid);margin-top:18px;padding-top:4px}
+#anrufVerlauf{max-height:190px;overflow:auto;margin-top:10px;font-size:13px}
+#anrufVerlauf p{margin:0 0 6px}
+#anrufVerlauf .werk{color:var(--mute);font-family:var(--mono);font-size:12px}
+td.weg{min-width:260px}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Showroom ADH · Budget-Freigabe</div>
+  <p class="klein" style="margin-top:14px"><a href="../">Zur Übersicht</a></p>
+  <h1>Freigabe nach Betrag, mit Vertretung und Protokoll</h1>
+  <p class="sub">Die Höhe eines Antrags bestimmt, wer zustimmen muss. Niemand gibt den eigenen Antrag frei, niemand zeichnet zweimal, und jeder Schritt steht im Protokoll. Firma, Personen und Anträge sind Beispieldaten.</p>
+  <div class="tiles" id="tiles" aria-live="polite">
+    <div class="tile"><b id="kWartet">0</b><i>warten auf Freigabe</i></div>
+    <div class="tile"><b id="kVolumen">0 €</b><i>wartendes Volumen</i></div>
+    <div class="tile"><b id="kFrei">0 €</b><i>freigegeben</i></div>
+    <div class="tile"><b id="kNein">0</b><i>abgelehnt</i></div>
+    <div class="tile"><b id="kAlt">0 Tage</b><i>längste Wartezeit</i></div>
+  </div>
+</header>
+
+<main>
+  <section class="card" id="karteAntraege" aria-labelledby="hAntraege">
+    <h2 id="hAntraege">Anträge</h2>
+    <p class="sub">Grün ist erledigt, gelb wartet auf einen Menschen, rot ist abgelehnt oder gesperrt.</p>
+    <table id="tabAntraege">
+      <thead><tr><th>Nummer</th><th>Gegenstand</th><th class="num">Betrag</th><th>Freigabeweg</th><th>Stand</th></tr></thead>
+      <tbody id="antraegeBody"></tbody>
+    </table>
+  </section>
+
+  <div class="duo">
+    <section class="card" id="karteNeu" aria-labelledby="hNeu">
+      <h2 id="hNeu">Neuer Antrag</h2>
+      <p class="sub">Der Freigabeweg erscheint schon bei der Eingabe.</p>
+      <form id="formNeu" novalidate>
+        <div class="felder">
+          <div><label for="von">Antrag von</label><select id="von"></select></div>
+          <div><label for="kst">Kostenstelle</label><select id="kst"></select></div>
+        </div>
+        <label for="gegenstand">Gegenstand</label>
+        <input id="gegenstand" type="text" autocomplete="off" maxlength="80">
+        <label for="betrag">Betrag in Euro, netto</label>
+        <input id="betrag" type="text" inputmode="decimal" autocomplete="off" class="mono">
+        <div id="vorschau" aria-live="polite"></div>
+        <div class="zeile"><button type="submit" class="ok" id="bStellen">Antrag stellen</button></div>
+        <p class="fehler" id="fehlerNeu" role="alert"></p>
+      </form>
+    </section>
+
+    <section class="card" id="karteEingang" aria-labelledby="hEingang">
+      <h2 id="hEingang">Mein Eingang</h2>
+      <p class="sub">Zeigt, was auf die gewählte Person wartet. In der Einführung ersetzt die Anmeldung diese Auswahl.</p>
+      <label for="wer">Angemeldet als</label>
+      <select id="wer"></select>
+      <div id="eingangListe" aria-live="polite"></div>
+      <p class="fehler" id="fehlerEingang" role="alert"></p>
+      <div id="anruf">
+        <label>Freigabe per Anruf</label>
+        <p class="klein">Der Assistent liest vor, was auf die gewählte Person wartet, wiederholt jede Entscheidung und führt sie erst nach einem klaren Ja aus. In dieser Vorführung läuft der Anruf im Browser, mit Mikrofon. Das Gespräch geht dafür an ElevenLabs.</p>
+        <div class="zeile">
+          <button type="button" class="ok" id="bAnruf">Anruf annehmen</button>
+          <button type="button" id="bAnrufText">Stattdessen schreiben</button>
+          <button type="button" id="bAuflegen" disabled>Auflegen</button>
+          <span class="tag info" id="anrufStand">kein Anruf</span>
+        </div>
+        <div class="zeile" id="anrufEingabe" hidden>
+          <input id="anrufText" type="text" autocomplete="off" maxlength="200" aria-label="Antwort an den Assistenten" placeholder="Antwort schreiben, Eingabetaste sendet">
+        </div>
+        <div id="anrufVerlauf" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="duo">
+    <section class="card" id="karteRegeln" aria-labelledby="hRegeln">
+      <h2 id="hRegeln">Freigaberegeln</h2>
+      <p class="sub">Drei Betragsgrenzen, vier Stufen. Geänderte Grenzen gelten für neue Anträge, laufende behalten ihren Weg.</p>
+      <div class="felder">
+        <div><label for="g1">Grenze 1 in Euro</label><input id="g1" type="text" inputmode="numeric" class="mono"></div>
+        <div><label for="g2">Grenze 2 in Euro</label><input id="g2" type="text" inputmode="numeric" class="mono"></div>
+        <div><label for="g3">Grenze 3 in Euro</label><input id="g3" type="text" inputmode="numeric" class="mono"></div>
+      </div>
+      <div class="zeile"><button type="button" id="bGrenzen">Grenzen übernehmen</button></div>
+      <p class="fehler" id="fehlerRegeln" role="alert"></p>
+      <table id="tabRegeln">
+        <thead><tr><th>Betrag</th><th>Es stimmen zu</th></tr></thead>
+        <tbody id="regelnBody"></tbody>
+      </table>
+    </section>
+
+    <section class="card" id="kartePersonen" aria-labelledby="hPersonen">
+      <h2 id="hPersonen">Rollen und Vertretung</h2>
+      <p class="sub">Ist jemand abwesend, geht die Freigabe an die hinterlegte Vertretung, sofern diese nicht selbst am Antrag beteiligt ist.</p>
+      <table id="tabPersonen">
+        <thead><tr><th>Person</th><th>Rolle</th><th>Vertretung</th><th>Abwesend</th></tr></thead>
+        <tbody id="personenBody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <section class="card" id="karteProtokoll" aria-labelledby="hProtokoll">
+    <h2 id="hProtokoll">Protokoll</h2>
+    <p class="sub">Jeder Schritt mit Zeit, Person und Vorgang, der neueste zuerst. In dieser Seite lebt das Protokoll nur bis zum Schließen des Fensters.</p>
+    <table id="tabProtokoll">
+      <thead><tr><th>Zeit</th><th>Antrag</th><th>Person</th><th>Vorgang</th></tr></thead>
+      <tbody id="protokollBody"></tbody>
+    </table>
+  </section>
+</main>
+
+<footer>Showroom ADH, 21.11.2026. Beispieldaten. Alle Eingaben bleiben in diesem Browserfenster. Nur ein angenommener Anruf geht als Gespräch an ElevenLabs.</footer>
+
+<script>
+"use strict";
+/* ---------- Stammdaten (Beispiel, erfunden) ---------- */
+var P = {
+  hartmann: { n: "Lena Hartmann", r: "Mitarbeiterin Produktion" },
+  arnold:   { n: "Felix Arnold", r: "Mitarbeiter Vertrieb" },
+  aydin:    { n: "Deniz Aydin", r: "Mitarbeiter IT" },
+  weber:    { n: "Jonas Weber", r: "Leitung Kostenstelle 4100", v: "kaya" },
+  kaya:     { n: "Miriam Kaya", r: "Leitung Kostenstelle 5200", v: "weber" },
+  lindner:  { n: "Tobias Lindner", r: "Leitung Kostenstelle 6300", v: "brandt" },
+  vogt:     { n: "Hanna Vogt", r: "Bereichsleitung Betrieb", v: "brandt" },
+  brandt:   { n: "Carsten Brandt", r: "Bereichsleitung Markt", v: "vogt" },
+  sommer:   { n: "Petra Sommer", r: "Leitung Finanzen", v: "keller" },
+  keller:   { n: "Andreas Keller", r: "Geschäftsführung", v: "sommer" }
+};
+var PID = ["hartmann", "arnold", "aydin", "weber", "kaya", "lindner", "vogt", "brandt", "sommer", "keller"];
+var KST = {
+  "4100": { n: "Produktion", l: "weber", b: "vogt" },
+  "5200": { n: "IT", l: "kaya", b: "vogt" },
+  "6300": { n: "Vertrieb", l: "lindner", b: "brandt" }
+};
+var ROLLEN = ["KST", "BL", "FIN", "GF"];
+var RNAME = { KST: "Kostenstellenleitung", BL: "Bereichsleitung", FIN: "Leitung Finanzen", GF: "Geschäftsführung" };
+
+/* ---------- Zustand ---------- */
+var grenzen = [1000, 10000, 50000];
+var abw = {};          /* pid -> true, wenn abwesend */
+var antraege = [];
+var protokoll = [];    /* neuester Eintrag zuerst */
+var laufendeNr = 1046;
+var STUNDE = 3600000, TAG = 24 * STUNDE;
+
+/* ---------- Helfer ---------- */
+function $(id) { return document.getElementById(id); }
+function h(tag, attrs, kinder) {
+  var e = document.createElement(tag), k;
+  if (attrs) for (k in attrs) {
+    if (k === "text") e.textContent = attrs[k];
+    else if (k === "klasse") e.className = attrs[k];
+    else e.setAttribute(k, attrs[k]);
+  }
+  (kinder || []).forEach(function (c) { if (c) e.appendChild(c); });
+  return e;
+}
+function euro(x) { return x.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"; }
+function euro0(x) { return Math.round(x).toLocaleString("de-DE") + " €"; }
+function zwei(n) { return (n < 10 ? "0" : "") + n; }
+function zeit(t) {
+  var d = new Date(t);
+  return zwei(d.getDate()) + "." + zwei(d.getMonth() + 1) + "." + d.getFullYear() + " " + zwei(d.getHours()) + ":" + zwei(d.getMinutes());
+}
+function leseBetrag(s) {
+  s = String(s || "").replace(/[€\s]/g, "");
+  if (s === "") return NaN;
+  if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  if (!/^\d+(\.\d+)?$/.test(s)) return NaN;
+  return parseFloat(s);
+}
+function logge(t, nr, wer, was) { protokoll.unshift({ t: t, nr: nr, wer: wer, was: was }); }
+
+/* ---------- Regeln ---------- */
+function inhaber(rolle, kst) {
+  if (rolle === "KST") return KST[kst].l;
+  if (rolle === "BL") return KST[kst].b;
+  if (rolle === "FIN") return "sommer";
+  return "keller";
+}
+function stufenZahl(betrag, g) {
+  if (betrag <= g[0]) return 1;
+  if (betrag <= g[1]) return 2;
+  if (betrag <= g[2]) return 3;
+  return 4;
+}
+/* Der Weg eines Antrags. Eine Stufe, deren Inhaber der Antragsteller selbst ist, entfaellt.
+   Bleibt dadurch keine Stufe uebrig, stimmt die naechsthoehere zu. */
+function weg(betrag, kst, von) {
+  var n = stufenZahl(betrag, grenzen);
+  var alle = ROLLEN.slice(0, n);
+  var rollen = alle.filter(function (r) { return inhaber(r, kst) !== von; });
+  var entfallen = alle.length !== rollen.length;
+  if (rollen.length === 0) {
+    var hoch = ROLLEN[Math.min(n, ROLLEN.length - 1)];
+    if (inhaber(hoch, kst) === von) hoch = "FIN";
+    rollen = [hoch];
+  }
+  return { rollen: rollen, entfallen: entfallen };
+}
+function aktiverIndex(q) {
+  for (var i = 0; i < q.schritte.length; i++) { if (q.schritte[i].status === "offen") return i; }
+  return -1;
+}
+/* Wer ist fuer die aktive Stufe zustaendig? Der Inhaber, bei Abwesenheit die Vertretung.
+   Die Vertretung ist gesperrt, wenn sie den Antrag gestellt hat, schon zugestimmt hat
+   oder eine spaetere Stufe desselben Antrags innehat. */
+function zustaendig(q) {
+  var i = aktiverIndex(q);
+  if (q.status !== "offen" || i < 0) return {};
+  var inh = inhaber(q.schritte[i].rolle, q.kst);
+  if (!abw[inh]) return { person: inh };
+  var v = P[inh].v;
+  if (!v || abw[v]) return { gesperrt: "Inhaber und Vertretung sind abwesend" };
+  var belegt = [q.von];
+  q.schritte.forEach(function (s, k) {
+    if (k < i && s.wer) belegt.push(s.wer);
+    if (k > i) belegt.push(inhaber(s.rolle, q.kst));
+  });
+  if (belegt.indexOf(v) >= 0) return { gesperrt: "Vertretung " + P[v].n + " ist selbst am Antrag beteiligt" };
+  return { person: v, vertritt: inh };
+}
+
+/* ---------- Vorgaenge ---------- */
+function stelle(von, kst, gegenstand, betrag, t) {
+  var w = weg(betrag, kst, von);
+  var q = {
+    nr: "BA-" + laufendeNr++, von: von, kst: kst, gegenstand: gegenstand, betrag: betrag,
+    status: "offen", gestellt: t, seit: t, entfallen: w.entfallen,
+    schritte: w.rollen.map(function (r) { return { rolle: r, status: "offen" }; })
+  };
+  antraege.push(q);
+  logge(t, q.nr, von, "Antrag über " + euro(betrag) + " gestellt. Weg: " +
+    w.rollen.map(function (r) { return RNAME[r]; }).join(", ") +
+    (w.entfallen ? ". Eigene Stufe entfällt" : "") + ".");
+  return q;
+}
+function entscheide(q, wer, ja, kommentar, t) {
+  var i = aktiverIndex(q), z = zustaendig(q);
+  if (i < 0 || z.person !== wer) return false;
+  var s = q.schritte[i];
+  s.wer = wer; s.fuer = z.vertritt || null; s.t = t; s.kom = kommentar || "";
+  s.status = ja ? "ok" : "nein";
+  var zusatz = (s.fuer ? " in Vertretung für " + P[s.fuer].n : "") + (s.kom ? ". Anmerkung: " + s.kom : "") + ".";
+  if (ja) {
+    if (i === q.schritte.length - 1) { q.status = "frei"; logge(t, q.nr, wer, "Freigabe als " + RNAME[s.rolle] + zusatz + " Antrag ist freigegeben."); }
+    else { q.seit = t; logge(t, q.nr, wer, "Freigabe als " + RNAME[s.rolle] + zusatz); }
+  } else {
+    q.status = "abgelehnt";
+    logge(t, q.nr, wer, "Ablehnung als " + RNAME[s.rolle] + zusatz);
+  }
+  return true;
+}
+
+/* ---------- Beispieldaten ---------- */
+function beispiel() {
+  var j = Date.now(), q;
+  laufendeNr = 1040;
+  q = stelle("aydin", "5200", "Beratertage Prozessaufnahme", 12500, j - 7 * TAG);
+  entscheide(q, "kaya", true, "", j - 6 * TAG);
+  entscheide(q, "vogt", false, "Budget des Jahres ausgeschöpft, bitte in die Planung des Folgejahres aufnehmen", j - 5 * TAG);
+  q = stelle("hartmann", "4100", "Ersatzteile Presse 3", 820, j - 4 * TAG);
+  entscheide(q, "weber", true, "", j - 3 * TAG);
+  q = stelle("hartmann", "4100", "Wartungsvertrag Kompressoren", 7400, j - 3 * TAG);
+  entscheide(q, "weber", true, "", j - 2 * TAG - 3 * STUNDE);
+  q = stelle("arnold", "6300", "Notebooks Vertrieb, zwölf Geräte", 18600, j - 6 * TAG);
+  entscheide(q, "lindner", true, "", j - 5 * TAG);
+  entscheide(q, "brandt", true, "Im Budget Vertrieb enthalten", j - 4 * TAG - 2 * STUNDE);
+  stelle("arnold", "6300", "Messestand Frühjahrsmesse", 64000, j - 1 * TAG - 4 * STUNDE);
+  stelle("kaya", "5200", "Lizenz Konstruktionssoftware", 3200, j - 5 * STUNDE);
+}
+
+/* ---------- Anzeige ---------- */
+function tag(text, klasse) { return h("span", { klasse: "tag " + klasse, text: text }); }
+
+function zeigeKennzahlen() {
+  var wartet = 0, vol = 0, frei = 0, nein = 0, alt = 0, j = Date.now();
+  antraege.forEach(function (q) {
+    if (q.status === "offen") { wartet++; vol += q.betrag; alt = Math.max(alt, Math.floor((j - q.seit) / TAG)); }
+    else if (q.status === "frei") frei += q.betrag;
+    else nein++;
+  });
+  $("kWartet").textContent = String(wartet);
+  $("kVolumen").textContent = euro0(vol);
+  $("kFrei").textContent = euro0(frei);
+  $("kNein").textContent = String(nein);
+  $("kAlt").textContent = alt + (alt === 1 ? " Tag" : " Tage");
+}
+
+function zeigeAntraege() {
+  var body = $("antraegeBody"), j = Date.now();
+  body.textContent = "";
+  antraege.slice().reverse().forEach(function (q) {
+    var i = aktiverIndex(q), z = zustaendig(q);
+    var tdWeg = h("td", { klasse: "weg" });
+    q.schritte.forEach(function (s, k) {
+      var name = RNAME[s.rolle];
+      if (s.status === "ok") tdWeg.appendChild(tag(name + ": " + P[s.wer].n + (s.fuer ? " in Vertretung" : ""), "auto"));
+      else if (s.status === "nein") tdWeg.appendChild(tag(name + ": " + P[s.wer].n + " lehnt ab", "crit"));
+      else if (q.status === "offen" && k === i) {
+        if (z.person) tdWeg.appendChild(tag(name + ": " + P[z.person].n + (z.vertritt ? " vertritt " + P[z.vertritt].n : ""), "appr"));
+        else tdWeg.appendChild(tag(name + ": gesperrt", "crit"));
+      } else tdWeg.appendChild(tag(name, "spaeter"));
+      tdWeg.appendChild(document.createTextNode(" "));
+    });
+    if (q.entfallen) tdWeg.appendChild(h("div", { klasse: "klein", text: "Eigene Stufe entfällt, niemand gibt den eigenen Antrag frei." }));
+
+    var tdStand = h("td");
+    if (q.status === "frei") tdStand.appendChild(tag("freigegeben", "auto"));
+    else if (q.status === "abgelehnt") {
+      tdStand.appendChild(tag("abgelehnt", "crit"));
+      var grund = q.schritte.filter(function (s) { return s.status === "nein"; })[0];
+      if (grund && grund.kom) tdStand.appendChild(h("div", { klasse: "klein", text: grund.kom }));
+    } else if (z.gesperrt) {
+      tdStand.appendChild(tag("gesperrt", "crit"));
+      tdStand.appendChild(h("div", { klasse: "klein", text: z.gesperrt + "." }));
+    } else {
+      var tage = Math.floor((j - q.seit) / TAG);
+      tdStand.appendChild(tag(tage === 0 ? "wartet seit heute" : "wartet seit " + tage + (tage === 1 ? " Tag" : " Tagen"), "appr"));
+    }
+
+    body.appendChild(h("tr", { id: "zeile-" + q.nr }, [
+      h("td", { klasse: "mono", text: q.nr }),
+      h("td", null, [
+        h("div", { text: q.gegenstand }),
+        h("div", { klasse: "klein", text: P[q.von].n + ", Kostenstelle " + q.kst + " " + KST[q.kst].n })
+      ]),
+      h("td", { klasse: "num", text: euro(q.betrag) }),
+      tdWeg, tdStand
+    ]));
+  });
+}
+
+function zeigeEingang() {
+  var wer = $("wer").value, liste = $("eingangListe"), n = 0;
+  liste.textContent = "";
+  antraege.forEach(function (q) {
+    if (q.status !== "offen") return;
+    var z = zustaendig(q);
+    if (z.person !== wer) return;
+    n++;
+    var s = q.schritte[aktiverIndex(q)];
+    var kom = h("input", { id: "kom-" + q.nr, type: "text", maxlength: "160", "aria-label": "Anmerkung zu " + q.nr + ", bei Ablehnung Pflicht", placeholder: "Anmerkung, bei Ablehnung Pflicht" });
+    var bOk = h("button", { type: "button", klasse: "ok", id: "ok-" + q.nr, text: "Freigeben" });
+    var bNein = h("button", { type: "button", id: "nein-" + q.nr, text: "Ablehnen" });
+    bOk.addEventListener("click", function () { handle(q, true); });
+    bNein.addEventListener("click", function () { handle(q, false); });
+    liste.appendChild(h("div", { klasse: "posten", id: "posten-" + q.nr }, [
+      h("div", { klasse: "kopf" }, [
+        h("b", { text: q.nr + " " + q.gegenstand }),
+        h("span", { klasse: "mono", text: euro(q.betrag) })
+      ]),
+      h("div", { klasse: "klein", text: "Von " + P[q.von].n + ", Kostenstelle " + q.kst + ". Stufe: " + RNAME[s.rolle] + (z.vertritt ? ", in Vertretung für " + P[z.vertritt].n : "") + "." }),
+      h("div", { klasse: "zeile" }, [kom]),
+      h("div", { klasse: "zeile" }, [bOk, bNein])
+    ]));
+  });
+  if (n === 0) liste.appendChild(h("p", { klasse: "mute", text: "Auf " + P[wer].n + " wartet gerade nichts." }));
+}
+function handle(q, ja) {
+  var feld = $("kom-" + q.nr), kom = feld ? feld.value.trim() : "";
+  $("fehlerEingang").textContent = "";
+  if (!ja && !kom) { $("fehlerEingang").textContent = "Eine Ablehnung braucht eine Begründung."; if (feld) feld.focus(); return; }
+  if (!entscheide(q, $("wer").value, ja, kom, Date.now())) { $("fehlerEingang").textContent = "Dieser Antrag liegt nicht mehr bei dieser Person."; }
+  zeigeAlles();
+}
+
+function zeigeRegeln() {
+  var body = $("regelnBody"), g = grenzen;
+  body.textContent = "";
+  var zeilen = [
+    ["bis " + euro0(g[0]), 1], ["bis " + euro0(g[1]), 2], ["bis " + euro0(g[2]), 3], ["über " + euro0(g[2]), 4]
+  ];
+  zeilen.forEach(function (z) {
+    var td = h("td");
+    ROLLEN.slice(0, z[1]).forEach(function (r) { td.appendChild(tag(RNAME[r], "info")); td.appendChild(document.createTextNode(" ")); });
+    body.appendChild(h("tr", null, [h("td", { klasse: "mono", text: z[0] }), td]));
+  });
+}
+function uebernehmeGrenzen() {
+  var neu = [leseBetrag($("g1").value), leseBetrag($("g2").value), leseBetrag($("g3").value)];
+  $("fehlerRegeln").textContent = "";
+  if (neu.some(isNaN) || !(neu[0] > 0 && neu[0] < neu[1] && neu[1] < neu[2])) {
+    $("fehlerRegeln").textContent = "Die drei Grenzen müssen Zahlen sein und aufsteigen.";
+    return;
+  }
+  grenzen = neu;
+  logge(Date.now(), "", $("wer").value, "Betragsgrenzen geändert auf " + neu.map(euro0).join(", ") + ". Gilt für neue Anträge.");
+  zeigeAlles();
+}
+
+function zeigePersonen() {
+  var body = $("personenBody");
+  body.textContent = "";
+  PID.forEach(function (id) {
+    var p = P[id], td = h("td");
+    if (p.v) {
+      var c = h("input", { type: "checkbox", id: "abw-" + id, "aria-label": p.n + " ist abwesend" });
+      c.checked = !!abw[id];
+      c.addEventListener("change", function () {
+        abw[id] = c.checked;
+        logge(Date.now(), "", id, c.checked ? "Abwesenheit eingetragen. Vertretung: " + P[p.v].n + "." : "Abwesenheit beendet.");
+        zeigeAlles();
+      });
+      td.appendChild(c);
+    }
+    body.appendChild(h("tr", null, [
+      h("td", { text: p.n }), h("td", { klasse: "mute", text: p.r }),
+      h("td", { text: p.v ? P[p.v].n : "" }), td
+    ]));
+  });
+}
+
+function zeigeProtokoll() {
+  var body = $("protokollBody");
+  body.textContent = "";
+  protokoll.slice().sort(function (a, b) { return b.t - a.t; }).forEach(function (e) {
+    body.appendChild(h("tr", null, [
+      h("td", { klasse: "mono", text: zeit(e.t) }), h("td", { klasse: "mono", text: e.nr }),
+      h("td", { text: P[e.wer] ? P[e.wer].n : "" }), h("td", { text: e.was })
+    ]));
+  });
+}
+
+function zeigeVorschau() {
+  var box = $("vorschau"), betrag = leseBetrag($("betrag").value);
+  box.textContent = "";
+  if (isNaN(betrag) || betrag <= 0) { box.appendChild(h("span", { klasse: "klein", text: "Betrag eintragen, dann erscheint der Freigabeweg." })); return; }
+  var von = $("von").value, kst = $("kst").value, w = weg(betrag, kst, von);
+  w.rollen.forEach(function (r) {
+    box.appendChild(tag(RNAME[r] + ": " + P[inhaber(r, kst)].n, "info"));
+    box.appendChild(document.createTextNode(" "));
+  });
+  box.appendChild(h("div", { klasse: "klein", text: euro(betrag) + ": " + (w.rollen.length === 1 ? "eine Person stimmt zu." : w.rollen.length + " Personen stimmen nacheinander zu.") + (w.entfallen ? " Die eigene Stufe entfällt." : "") }));
+}
+
+function zeigeAlles() {
+  zeigeKennzahlen(); zeigeAntraege(); zeigeEingang(); zeigeRegeln(); zeigePersonen(); zeigeProtokoll(); zeigeVorschau();
+}
+
+/* ---------- Freigabe per Anruf (ElevenLabs) ----------
+   Der Assistent spricht nur. Was er tut, laeuft ueber drei Werkzeuge in dieser Seite, und die
+   pruefen dieselben Regeln wie die Knoepfe: entscheide() weist alles ab, was nicht bei der
+   angemeldeten Person liegt. */
+var AGENT_ID = "agent_1101m7ysg87jf85rabjm2aqtbjw0";
+var SDK = "https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.37.1/+esm";
+var gespraech = null, anrufWer = null;
+function anrufZeile(klasse, text) {
+  var v = $("anrufVerlauf"); v.appendChild(h("p", { klasse: klasse, text: text })); v.scrollTop = 1e9;
+}
+function sucheAntrag(nummer) {
+  var ziffern = String(nummer || "").replace(/\D/g, "");
+  return antraege.filter(function (q) { return q.nr.replace(/\D/g, "") === ziffern; })[0];
+}
+var anrufWerkzeuge = {
+  offene_freigaben: function () {
+    var teile = [];
+    antraege.forEach(function (q) {
+      var z = zustaendig(q);
+      if (q.status !== "offen" || z.person !== anrufWer) return;
+      teile.push(q.nr + ": " + q.gegenstand + ", " + euro(q.betrag) + ", gestellt von " + P[q.von].n + ", Kostenstelle " + KST[q.kst].n +
+        ", Stufe " + RNAME[q.schritte[aktiverIndex(q)].rolle] + (z.vertritt ? ", in Vertretung für " + P[z.vertritt].n : ""));
+    });
+    var antwort = teile.length ? "Auf " + P[anrufWer].n + " warten " + teile.length + " Anträge. " + teile.join(". ") + "." : "Auf " + P[anrufWer].n + " wartet gerade nichts.";
+    anrufZeile("werk", "offene_freigaben: " + teile.length);
+    return antwort;
+  },
+  freigeben: function (a) { return anrufEntscheide(a && a.nummer, true, "Per Anruf bestätigt"); },
+  ablehnen: function (a) {
+    var grund = String(a && a.grund || "").trim();
+    if (!grund) return "Nicht ausgeführt: eine Ablehnung braucht eine Begründung.";
+    return anrufEntscheide(a.nummer, false, grund + " (per Anruf)");
+  }
+};
+function anrufEntscheide(nummer, ja, kom) {
+  var q = sucheAntrag(nummer), antwort;
+  if (!q) antwort = "Nicht ausgeführt: den Antrag " + nummer + " gibt es nicht.";
+  else if (!entscheide(q, anrufWer, ja, kom, Date.now())) antwort = "Nicht ausgeführt: " + q.nr + " liegt nicht bei " + P[anrufWer].n + ".";
+  else antwort = q.nr + " ist " + (ja ? (q.status === "frei" ? "freigegeben, der Antrag ist damit durch" : "freigegeben und geht an die nächste Stufe") : "abgelehnt") + ". Es steht im Protokoll.";
+  anrufZeile("werk", (ja ? "freigeben " : "ablehnen ") + nummer + ": " + antwort);
+  zeigeAlles();
+  return antwort;
+}
+function anrufEnde() {
+  gespraech = null;
+  $("bAnruf").disabled = $("bAnrufText").disabled = $("wer").disabled = false;
+  $("bAuflegen").disabled = true; $("anrufEingabe").hidden = true;
+  $("anrufStand").textContent = "kein Anruf"; $("anrufStand").className = "tag info";
+}
+function anrufStart(nurText) {
+  if (gespraech) return;
+  anrufWer = $("wer").value;
+  $("bAnruf").disabled = $("bAnrufText").disabled = $("wer").disabled = true;
+  $("anrufVerlauf").textContent = "";
+  $("anrufStand").textContent = "verbinde"; $("anrufStand").className = "tag appr";
+  var optionen = {
+    agentId: AGENT_ID, clientTools: anrufWerkzeuge,
+    dynamicVariables: { name: P[anrufWer].n, rolle: P[anrufWer].r },
+    onMessage: function (m) { anrufZeile(m.source === "user" ? "mute" : "", (m.source === "user" ? P[anrufWer].n + ": " : "Assistent: ") + m.message); },
+    onError: function (e) { anrufZeile("fehler", "Fehler: " + (e && e.message || e)); },
+    onDisconnect: anrufEnde
+  };
+  if (nurText) { optionen.textOnly = true; optionen.overrides = { conversation: { textOnly: true } }; }
+  else optionen.connectionType = "webrtc";
+  import(SDK).then(function (m) { return m.Conversation.startSession(optionen); }).then(function (g) {
+    gespraech = g;
+    $("bAuflegen").disabled = false; $("anrufEingabe").hidden = !nurText;
+    $("anrufStand").textContent = nurText ? "verbunden, Text" : "Anruf läuft"; $("anrufStand").className = "tag auto";
+    if (nurText) $("anrufText").focus();
+  }).catch(function (e) { anrufZeile("fehler", "Der Anruf kam nicht zustande: " + (e && e.message || e)); anrufEnde(); });
+}
+window.freigabeAnruf = { start: anrufStart, werkzeuge: anrufWerkzeuge, sage: function (t) { if (gespraech) gespraech.sendUserMessage(t); } };
+
+/* ---------- Start ---------- */
+(function () {
+  PID.forEach(function (id) {
+    $("von").appendChild(h("option", { value: id, text: P[id].n + ", " + P[id].r }));
+    if (P[id].v) $("wer").appendChild(h("option", { value: id, text: P[id].n + ", " + P[id].r }));
+  });
+  Object.keys(KST).forEach(function (k) { $("kst").appendChild(h("option", { value: k, text: k + " " + KST[k].n })); });
+  $("g1").value = String(grenzen[0]); $("g2").value = String(grenzen[1]); $("g3").value = String(grenzen[2]);
+  $("wer").value = "vogt";
+
+  ["input", "change", "keyup"].forEach(function (ev) {
+    $("betrag").addEventListener(ev, zeigeVorschau);
+    $("von").addEventListener(ev, zeigeVorschau);
+    $("kst").addEventListener(ev, zeigeVorschau);
+  });
+  ["input", "change"].forEach(function (ev) {
+    $("wer").addEventListener(ev, function () { $("fehlerEingang").textContent = ""; zeigeEingang(); });
+  });
+  $("bGrenzen").addEventListener("click", uebernehmeGrenzen);
+  $("bAnruf").addEventListener("click", function () { anrufStart(false); });
+  $("bAnrufText").addEventListener("click", function () { anrufStart(true); });
+  $("bAuflegen").addEventListener("click", function () { if (gespraech) gespraech.endSession(); });
+  $("anrufText").addEventListener("keydown", function (e) {
+    var t = $("anrufText").value.trim();
+    if (e.key !== "Enter" || !t || !gespraech) return;
+    anrufZeile("mute", P[anrufWer].n + ": " + t); gespraech.sendUserMessage(t); $("anrufText").value = "";
+  });
+  $("formNeu").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var g = $("gegenstand").value.trim(), b = leseBetrag($("betrag").value);
+    $("fehlerNeu").textContent = "";
+    if (!g) { $("fehlerNeu").textContent = "Bitte den Gegenstand eintragen."; $("gegenstand").focus(); return; }
+    if (isNaN(b) || b <= 0) { $("fehlerNeu").textContent = "Bitte einen Betrag eintragen, zum Beispiel 8400 oder 8.400,00."; $("betrag").focus(); return; }
+    stelle($("von").value, $("kst").value, g, Math.round(b * 100) / 100, Date.now());
+    $("gegenstand").value = ""; $("betrag").value = "";
+    zeigeAlles();
+  });
+
+  beispiel();
+  zeigeAlles();
+})();
+</script>
+</body>
+</html>
